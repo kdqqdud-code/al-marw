@@ -1,11 +1,17 @@
 name: Build APK
 on: [push, workflow_dispatch]
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: unzip -o Al-Marw-project.zip
+      - name: Unpack project if needed
+        run: |
+          if [ -f Al-Marw-project.zip ]; then
+            unzip -o Al-Marw-project.zip
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -14,7 +20,10 @@ jobs:
         with:
           gradle-version: 8.14.3
       - run: gradle assembleDebug --no-daemon --stacktrace
-      - uses: actions/upload-artifact@v4
-        with:
-          name: al-marw-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk al-marw.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest al-marw.apk --title "Al-Marw" --notes "آخر نسخة"
